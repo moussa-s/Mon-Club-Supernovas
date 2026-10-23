@@ -226,6 +226,32 @@ textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var
 .frow .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.frow .top .nm{flex:1;min-width:120px;font-weight:600}
 .frow .amt{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}
 .fbox{background:var(--bg);border-radius:12px;padding:12px;margin-top:10px}
+.av{flex:none;object-fit:cover;display:block;background:var(--surface-2)}
+.pstrip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch}
+.pchip{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 6px;min-width:78px;cursor:pointer;font-size:.8rem;font-weight:500}
+.pchip[aria-pressed="true"]{border-color:var(--bib);background:var(--bib-soft)}
+.st-table td.on{font-weight:700}
+.sb{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:2px 0;white-space:nowrap}
+.link.pl,.cmp .pl{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.phys .pbig{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:clamp(3.4rem,15vw,6rem);line-height:.9;margin-top:8px;font-variant-numeric:tabular-nums}
+.phys .pbig small{font-size:.38em;opacity:.8}
+.phys-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-top:14px}
+.phys-grid div{background:rgba(255,255,255,.12);border-radius:10px;padding:8px 10px}
+.phys-grid b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:1.45rem;line-height:1.1}
+.phys-grid span{font-size:.78rem;opacity:.88;line-height:1.25;display:block}
+.cmp{display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:center;margin-top:8px;font-size:.9rem}
+.cmp.wide{grid-template-columns:minmax(0,130px) 1fr auto}
+.cmp .cb{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.cmp .cb i{display:block;height:100%;background:var(--bib);border-radius:5px}
+.cmp.t .cb i{background:var(--turf)}
+.cmp b{font-family:"Barlow Condensed",sans-serif;font-size:1.1rem;white-space:nowrap}
+a.mrow{text-decoration:none;color:inherit}.mrow.league{grid-template-columns:auto 1fr auto}.lg-ic{font-size:1.5rem}
+.ov{position:fixed;inset:0;z-index:40;background:rgba(10,20,15,.55);display:flex;align-items:flex-end;justify-content:center;padding:0 0 env(safe-area-inset-bottom,0px)}
+.ovp{background:var(--surface);color:var(--ink);width:100%;max-width:620px;max-height:92vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px 16px 20px}
+@media (min-width:700px){.ov{align-items:center}.ovp{border-radius:18px}}
+.ovchart{background:var(--bg);border-radius:12px;padding:8px;margin:8px 0 12px}
+.ovsum div{background:var(--bg)}.ovsum b{color:var(--ink)}.ovsum span{color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--bib);min-height:32px}
 .empty-state{text-align:center;padding:32px 16px}
 @media (prefers-reduced-motion:no-preference){.board .big{animation:pop .5s ease-out both}@keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}}
 </style>
@@ -280,7 +306,7 @@ const TYPES = {championnat:'Championnat',coupe:'Coupe',amical:'Amical',entrainem
 const POS = {champ:'Joueur de champ',gardien:'Gardien',polyvalent:'Polyvalent'};
 const CONVOC = {oui:'Présent',peutetre:'Peut-être',non:'Absent'};
 const PAYMODES = ['Espèces','Virement','CB','Chèque','Lydia / PayPal'];
-const DEFAULTS = {clubName:'Mon club de foot 5',matchLength:50,seasonStartMonth:9,kpis:KPIS.filter(d=>d.def).map(d=>d.k)};
+const DEFAULTS = {clubName:'Mon club de foot 5',matchLength:50,seasonStartMonth:9,leagueUrl:'https://myurban.fr/',kpis:KPIS.filter(d=>d.def).map(d=>d.k)};
 
 /* ---------- État ---------- */
 const S = {
@@ -315,6 +341,7 @@ function errMsg(e){
   const c=e&&(e.code||''), m=String(e&&e.message||'');
   if(c==='42501'||/row-level security|permission/i.test(m)) return "Enregistrement refusé : ton accès ne permet pas de modifier cette donnée. Demande au responsable du club.";
   if(c==='23505') return "Cet élément existe déjà.";
+  if(c==='23514') return "Donnée refusée : fichier trop lourd ou format non autorisé.";
   return "Enregistrement impossible pour le moment. Vérifie ta connexion et réessaie.";
 }
 
@@ -480,12 +507,12 @@ function gkRatios(a){
 const ICONS={
   tableau:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M3 12h4M17 12h4"/><circle cx="12" cy="12" r="2.5"/></svg>',
   matchs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
-  effectif:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3c-1 1.5-2.3 2-4 2s-3-.5-4-2z"/></svg>',
+  effectif:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V11M10 20V5M15 20v-6M20 20V9"/></svg>',
   profil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>',
   cotisations:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>',
   reglages:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>'
 };
-function navItems(){ const n=[['tableau','Tableau'],['matchs','Matchs'],['effectif','Effectif'],['profil','Mon profil','Profil']]; if(S.canEdit){ n.push(['cotisations','Cotisations','Cotis.']); n.push(['reglages','Réglages']); } return n; }
+function navItems(){ const n=[['tableau','Tableau'],['matchs','Matchs'],['effectif','Stats'],['profil','Mon profil','Profil']]; if(S.canEdit){ n.push(['cotisations','Cotisations','Cotis.']); n.push(['reglages','Réglages']); } return n; }
 function renderNav(){
   const cur=S.view, okk=S.local||S.auth==='ok';
   document.getElementById('acct').innerHTML=(!S.local&&S.auth==='ok')?'<button class="btn ghost sm" data-a="logout">Déconnexion</button>':'';
@@ -505,7 +532,7 @@ function render(fromData){
   let h='';
   if(S.view==='matchs') h=S.editing?vEditor():S.plan?vPlan():(S.matchId?vMatch():vMatches());
   else if(S.view==='cotisations') h=vFees();
-  else if(S.view==='effectif') h=S.playerId?vPlayer():vRoster();
+  else if(S.view==='effectif') h=vStats();
   else if(S.view==='profil') h=vProfile();
   else if(S.view==='reglages') h=vSettings();
   else h=vDashboard();
@@ -556,6 +583,7 @@ function vDashboard(){
   const last=played()[0];
   h+= last ? vBoard(last) : `<section class="board">${PITCH}<div class="in"><div class="meta">Aucun match saisi</div><div class="score"><div class="team">${esc(c.clubName)}</div><div class="big num">0<span>–</span>0</div><div class="team r">À venir</div></div>${S.canEdit?'<button class="btn primary" data-a="newmatch">Saisir un match</button>':''}</div></section>`;
   h+=nextCard();
+  h+=leagueLink();
   h+=filtersBar();
   let V=0,N=0,D=0,bp=0,bc=0;
   for(const m of ms){ const r=result(m); if(r==='V')V++; if(r==='N')N++; if(r==='D')D++; if(isNum(m.scoreFor))bp+=m.scoreFor; if(isNum(m.scoreAgainst))bc+=m.scoreAgainst; }
@@ -572,7 +600,7 @@ function vDashboard(){
   const A=ps.map(p=>({p,a:agg(p.id,ms)})).filter(x=>x.a.n>0);
   const boards=[];
   const lb=(title,list,fmt,max)=>{ const top=list.slice(0,5); if(!top.length) return; const mx=max??Math.max(...top.map(x=>x.v),0);
-    boards.push(`<section class="panel lb"><h3>${title}</h3>${top.length?`<ol>${top.map((x,i)=>`<li><span class="rk">${i+1}</span><div class="nm"><button class="link" data-a="player" data-v="${x.p.id}">${esc(pname(x.p))}</button><div class="bar" style="width:${mx>0?Math.max(6,100*x.v/mx):6}%"></div></div><span class="val">${fmt(x)}</span></li>`).join('')}</ol>`:'<p class="empty">Pas encore de données.</p>'}</section>`); };
+    boards.push(`<section class="panel lb"><h3>${title}</h3>${top.length?`<ol>${top.map((x,i)=>`<li><span class="rk">${i+1}</span><div class="nm"><button class="link pl" data-a="player" data-v="${x.p.id}">${avatar(x.p.id,24)}<span>${esc(pname(x.p))}</span></button><div class="bar" style="width:${mx>0?Math.max(6,100*x.v/mx):6}%"></div></div><span class="val">${fmt(x)}</span></li>`).join('')}</ol>`:'<p class="empty">Pas encore de données.</p>'}</section>`); };
   const sortBy=(f)=>A.map(x=>({...x,v:f(x.a)})).filter(x=>x.v!=null&&x.v>0).sort((a,b)=>b.v-a.v);
   if(on('goals')) lb('Meilleurs buteurs',sortBy(a=>T(a,'goals')),x=>x.v);
   if(on('assists')) lb('Meilleurs passeurs',sortBy(a=>T(a,'assists')),x=>x.v);
@@ -589,6 +617,7 @@ function vDashboard(){
 
 function vMatches(){
   let h=`<div class="stack"><div class="spread"><h2>Matchs</h2>${S.canEdit&&S.players.length?'<div class="row"><button class="btn" data-a="newplan">Prévoir un match</button><button class="btn primary" data-a="newmatch">+ Saisir un match joué</button></div>':''}</div>`;
+  h+=leagueLink();
   const up=upcoming();
   if(up.length) h+=`<section><h3 style="margin-bottom:8px">À venir</h3><div class="mlist">${up.map(m=>{const c=convCounts(m);return `<button class="mrow" data-a="match" data-v="${m.id}">
     <div class="d"><b>${fdate(m.date,{day:'numeric'})}</b>${fdate(m.date,{month:'short'})}</div>
@@ -618,6 +647,8 @@ function vMatch(){
   h+=vBoard(m);
   h+=`<section class="panel"><h3>Feuille de match</h3>${rows.length?`<div class="tw"><table><thead><tr><th>Joueur</th><th>Min</th><th>Poids</th>${cols.map(d=>`<th title="${esc(d.l)}">${esc(d.s)}</th>`).join('')}</tr></thead><tbody>
     ${rows.map(({pid,r})=>{const w=weightAt(pid,m.date);return `<tr><td><button class="link" data-a="player" data-v="${pid}">${esc(pname(player(pid)))}</button>${r.gk?' <span class="muted small">(G)</span>':''}${m.motm===pid?' <span title="Homme du match">★</span>':''}</td><td>${nf(r.min)}</td><td>${w?nf(w.kg,1)+' kg':'—'}</td>${cols.map(d=>`<td>${nf(r[d.k],d.dec||d.rating?1:0)}</td>`).join('')}</tr>`;}).join('')}</tbody></table></div>`:'<p class="muted">Aucun joueur saisi sur ce match.</p>'}</section>`;
+  const kms=rows.filter(x=>isNum(x.r.km)).sort((x,y)=>y.r.km-x.r.km);
+  if(kms.length){ const mx=kms[0].r.km; h+=`<section class="panel"><h3>Distance parcourue</h3>${kms.map(({pid,r})=>`<div class="cmp wide"><button class="link pl" data-a="player" data-v="${pid}">${avatar(pid,24)}<span>${esc(shortName(player(pid)))}</span></button><div class="cb"><i style="width:${100*r.km/mx}%"></i></div><b>${nf(r.km,2)} km</b></div>`).join('')}</section>`; }
   if(gks.length&&gcols.length) h+=`<section class="panel"><h3>Gardiens</h3><div class="tw"><table><thead><tr><th>Gardien</th><th>Min dans les buts</th>${gcols.map(d=>`<th>${esc(d.s)}</th>`).join('')}<th>% arrêts</th></tr></thead><tbody>
     ${gks.map(({pid,r})=>`<tr><td>${esc(pname(player(pid)))}</td><td>${nf(r.gkMin)}</td>${gcols.map(d=>`<td>${nf(r[d.k])}</td>`).join('')}<td>${pct(r.saves||0,(r.saves||0)+(r.conceded||0))}</td></tr>`).join('')}</tbody></table></div></section>`;
   return h+'</div>';
@@ -638,6 +669,7 @@ function vEditor(){
   let h=`<div class="stack"><div class="spread"><h2>${d._new?'Nouveau match':'Modifier le match'}</h2><button class="btn ghost" data-a="edcancel">Annuler</button></div>
   <section class="panel"><div class="fields">
     <label class="f">Date<input type="date" data-ef="date" value="${esc(d.date)}"></label>
+    <label class="f">Coup d\u2019envoi<input type="time" data-ef="time" value="${esc(d.time||'')}"></label>
     <label class="f">Adversaire<input data-ef="opponent" value="${esc(d.opponent)}" placeholder="Nom de l\u2019équipe"></label>
     <label class="f">Type<select data-ef="type">${Object.entries(TYPES).map(([k,l])=>`<option value="${k}" ${d.type===k?'selected':''}>${l}</option>`).join('')}</select></label>
     <label class="f">Lieu<input data-ef="place" value="${esc(d.place||'')}" placeholder="Facultatif"></label>
@@ -650,7 +682,7 @@ function vEditor(){
   <div class="sheet">`;
   for(const p of ps){
     const r=d.stats[p.id]||{present:false};
-    h+=`<div class="prow ${r.present?'':'off'}"><div class="hd"><span class="badge ${p.position==='gardien'?'gk':''}" style="width:34px;height:34px;font-size:1.05rem;border-radius:8px">${esc(p.number??'')}</span>
+    h+=`<div class="prow ${r.present?'':'off'}"><div class="hd">${avatar(p.id,34)}
       <span class="nm">${esc(pname(p))}</span>
       <button class="tog" data-a="edpres" data-v="${p.id}" aria-pressed="${!!r.present}"><i></i>Présent</button></div>`;
     if(r.present){
@@ -667,6 +699,7 @@ function vEditor(){
   h+=`</div><div class="checkbar" id="checkbar">${checks()}</div></div>`;
   return h;
 }
+function refreshChecks(){ const m=document.getElementById('chkmsg'); if(!m) return; const t=document.createElement('div'); t.innerHTML=checks(); m.innerHTML=t.firstElementChild.innerHTML; }
 function checks(){
   const d=S.editing; const pres=Object.values(d.stats).filter(r=>r.present);
   const g=pres.reduce((s,r)=>s+(r.goals||0),0)-0, csc=0;
@@ -676,7 +709,7 @@ function checks(){
   if(on('conceded')&&pres.some(r=>r.gk)&&conc!==d.scoreAgainst) msgs.push(`<span class="warn">${conc} but(s) encaissé(s) par les gardiens pour ${d.scoreAgainst}</span>`);
   if(on('shotsOn')&&on('shots')&&pres.some(r=>(r.shotsOn||0)>(r.shots||0))) msgs.push(`<span class="warn">Plus de tirs cadrés que de tirs pour un joueur</span>`);
   if(!msgs.length) msgs.push(`<span class="okk">${pres.length} présent(s), feuille cohérente</span>`);
-  return `<div style="flex:1;display:flex;flex-direction:column;gap:2px">${msgs.join('')}</div><button class="btn primary" data-a="edsave">Enregistrer le match</button>`;
+  return `<div id="chkmsg" style="flex:1;display:flex;flex-direction:column;gap:2px">${msgs.join('')}</div><button class="btn primary" data-a="edsave">Enregistrer le match</button>`;
 }
 function step(pid,k,dlt){
   const d=S.editing; const o=pid==='_m'?d:d.stats[pid]; if(!o) return;
@@ -685,7 +718,7 @@ function step(pid,k,dlt){
   else v=Math.max(0,(v||0)+dlt);
   o[k]=v; S.editDirty=true;
   const el=document.querySelector(`[data-v="${pid}:${k}"]`); if(el) el.textContent=nf(v,1);
-  const cb=document.getElementById('checkbar'); if(cb) cb.innerHTML=checks();
+  refreshChecks();
 }
 async function saveMatch(){
   const d=S.editing;
@@ -809,18 +842,154 @@ function vFees(){
 }
 
 /* ----- Effectif & fiche joueur ----- */
-function vRoster(){
+/* ----- Photos ----- */
+const PHOTO_RE=/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+function photoOf(pid){ const pr=profileOf(pid)||{}, p=player(pid)||{}; const ph=pr.photo||p.photo||null; return ph&&PHOTO_RE.test(ph)?ph:null; }
+function avatar(pid,size=44){
+  const p=player(pid)||{}, ph=photoOf(pid), r=Math.round(size*.24);
+  if(ph) return `<img class="av" src="${ph}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;border-radius:${r}px">`;
+  return `<span class="badge ${p.position==='gardien'?'gk':''}" style="width:${size}px;height:${size}px;border-radius:${r}px;font-size:${Math.round(size*.48)}px">${esc(p.number??'')}</span>`;
+}
+async function photoFromFile(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+    const s0=Math.min(img.naturalWidth,img.naturalHeight), sz=320, c=document.createElement('canvas'); c.width=c.height=sz;
+    c.getContext('2d').drawImage(img,(img.naturalWidth-s0)/2,(img.naturalHeight-s0)/2,s0,s0,0,0,sz,sz);
+    return c.toDataURL('image/jpeg',0.82);
+  } finally { URL.revokeObjectURL(url); }
+}
+function shortName(p){ const n=pname(p).trim().split(/\s+/); return n.length>1?n[0]+' '+n[n.length-1][0]+'.':n[0]; }
+
+/* ----- Graphiques équipe et physique ----- */
+function teamChart(ms){
+  const rows=ms.filter(m=>isNum(m.scoreFor)&&isNum(m.scoreAgainst)).slice(0,12).reverse();
+  if(!rows.length) return '<p class="muted small">Pas encore de match joué.</p>';
+  const W=560,H=150,pad=22, step=(W-pad)/rows.length, bw=Math.min(16,step/2-3);
+  const mx=Math.max(1,...rows.map(m=>Math.max(m.scoreFor,m.scoreAgainst)));
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H+20}" role="img" aria-label="Buts marqués et encaissés par match">`;
+  for(let y=0;y<=mx;y+=Math.max(1,Math.ceil(mx/4))){ const yy=H-(y/mx)*(H-10); s+=`<line x1="${pad}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)"/><text x="0" y="${yy+4}" font-size="11" fill="var(--muted)">${y}</text>`; }
+  rows.forEach((m,i)=>{ const x=pad+i*step+step/2-bw-1, hf=(m.scoreFor/mx)*(H-10), ha=(m.scoreAgainst/mx)*(H-10);
+    s+=`<rect x="${x}" y="${H-hf}" width="${bw}" height="${hf}" fill="var(--turf)" rx="2"><title>${esc(m.opponent||'Match')} : ${m.scoreFor} marqué(s)</title></rect><rect x="${x+bw+2}" y="${H-ha}" width="${bw}" height="${ha}" fill="var(--loss)" rx="2" opacity=".85"><title>${esc(m.opponent||'Match')} : ${m.scoreAgainst} encaissé(s)</title></rect>`;
+    s+=`<text x="${x+bw+1}" y="${H+15}" font-size="10" text-anchor="middle" fill="var(--muted)">${fdate(m.date,{day:'numeric',month:'numeric'})}</text>`; });
+  return s+'</svg>';
+}
+function kmChart(rows){
+  const W=560,H=160,pad=26, step=(W-pad)/rows.length, bw=Math.min(30,step-8);
+  const v=rows.map(x=>x.r.km), mx=Math.max(...v)*1.15, av=v.reduce((a,b)=>a+b,0)/v.length, Y=k=>H-(k/mx)*(H-14);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H+20}" role="img" aria-label="Distance parcourue par match">`;
+  rows.forEach(({m,r},i)=>{ const x=pad+i*step+(step-bw)/2;
+    s+=`<rect x="${x}" y="${Y(r.km)}" width="${bw}" height="${H-Y(r.km)}" fill="var(--bib)" rx="3"><title>${esc(m.opponent||'Match')}, ${fdate(m.date)} : ${nf(r.km,2)} km</title></rect>`;
+    s+=`<text x="${x+bw/2}" y="${Y(r.km)-4}" font-size="11" font-weight="600" text-anchor="middle" fill="var(--ink)">${nf(r.km,1)}</text>`;
+    s+=`<text x="${x+bw/2}" y="${H+15}" font-size="10" text-anchor="middle" fill="var(--muted)">${fdate(m.date,{day:'numeric',month:'numeric'})}</text>`; });
+  s+=`<line x1="${pad}" x2="${W}" y1="${Y(av)}" y2="${Y(av)}" stroke="var(--turf)" stroke-width="2" stroke-dasharray="6 4"/><text x="${pad}" y="${Y(av)-5}" font-size="11" fill="var(--turf)">moyenne ${nf(av,1)} km</text>`;
+  return s+'</svg>';
+}
+function teamIntensity(ms){ let km=0,min=0; for(const m of ms) for(const pid of Object.keys(m.stats||{})){ const r=rec(m,pid); if(r&&isNum(r.km)){ km+=r.km; min+=isNum(r.min)?r.min:(m.duration||cfg().matchLength); } } return min?km/min*10:null; }
+function physique(pid,a,ms,isMe){
+  const kr=a.rows.filter(x=>isNum(x.r.km)), hr=a.rows.filter(x=>isNum(x.r.hrAvg));
+  if(!kr.length&&!hr.length){
+    return isMe&&on('km')?`<section class="panel"><h3>Physique</h3><p class="muted">Importe les données de ta montre dans « Mon profil » : distance, cardio et vitesse s\u2019afficheront ici en graphiques.</p><button class="btn sm" data-a="nav" data-v="profil">Importer mes séances</button></section>`:'';
+  }
+  const km=kr.reduce((s,x)=>s+x.r.km,0), best=kr.slice().sort((x,y)=>y.r.km-x.r.km)[0];
+  let mn=0; for(const {m,r} of kr) mn+=isNum(r.min)?r.min:(m.duration||cfg().matchLength);
+  const inten=mn?km/mn*10:null, tInt=teamIntensity(ms);
+  const hrAvg=hr.length?hr.reduce((s,x)=>s+x.r.hrAvg,0)/hr.length:null;
+  const hrMax=Math.max(0,...a.rows.map(x=>x.r.hrMax||0))||null, vmax=Math.max(0,...a.rows.map(x=>x.r.vmax||0))||null;
+  const tiles=[
+    kr.length?['Par match',nf(km/kr.length,2)+' km']:null,
+    best?['Record',nf(best.r.km,2)+' km',(best.m.opponent||'')+' '+fdate(best.m.date,{day:'numeric',month:'short'})]:null,
+    inten?['Intensité',nf(inten,2)+' km','par 10 min de jeu']:null,
+    hrAvg?['Cardio moyen',nf(hrAvg,0)+' bpm']:null,
+    hrMax?['Cardio max',nf(hrMax,0)+' bpm']:null,
+    vmax?['Vitesse max',nf(vmax,1)+' km/h']:null
+  ].filter(Boolean);
+  let h=`<section class="board phys">${PITCH}<div class="in">
+    <div class="meta">Physique, ${kr.length} match${kr.length>1?'s':''} avec montre</div>
+    ${kr.length?`<div class="pbig num">${nf(km,1)}<small> km</small></div><div class="meta">parcourus, soit environ ${nf(Math.round(km*1000/40))} longueurs de terrain de foot 5</div>`:''}
+    <div class="phys-grid">${tiles.map(t=>`<div><b>${t[1]}</b><span>${esc(t[0])}${t[2]?'<br>'+esc(t[2]):''}</span></div>`).join('')}</div></div></section>`;
+  if(kr.length){
+    const mxI=Math.max(inten||0,tInt||0)||1;
+    h+=`<section class="panel"><h3>Distance match après match</h3>${kmChart(kr.slice(0,12).reverse())}
+      ${inten&&tInt?`<p class="sub">Intensité comparée (km par 10 min)</p><div class="cmp"><span>Ce joueur</span><div class="cb"><i style="width:${100*inten/mxI}%"></i></div><b>${nf(inten,2)}</b></div><div class="cmp t"><span>Moyenne équipe</span><div class="cb"><i style="width:${100*tInt/mxI}%"></i></div><b>${nf(tInt,2)}</b></div>`:''}</section>`;
+  }
+  return h;
+}
+
+/* ----- Page Stats : suivi global + suivi par joueur ----- */
+function vStats(){
   const ps=players(S.showArchived), ms=FM();
-  let h=`<div class="stack"><div class="spread"><h2>Effectif</h2><div class="row">${S.players.some(p=>p.active===false)?`<button class="chip" data-a="toggleArch" aria-pressed="${S.showArchived}">Afficher les anciens</button>`:''}${S.canEdit?'<button class="btn" data-a="nav" data-v="reglages">Gérer l\u2019effectif</button>':''}</div></div>`;
+  let h=`<div class="stack"><div class="spread"><h2>Stats</h2><div class="row">${S.players.some(p=>p.active===false)?`<button class="chip" data-a="toggleArch" aria-pressed="${S.showArchived}">Afficher les anciens</button>`:''}${S.canEdit?'<button class="btn" data-a="nav" data-v="reglages">Gérer l\u2019effectif</button>':''}</div></div>`;
   h+=filtersBar();
   if(!ps.length) return h+`<div class="panel empty-state"><p class="muted">Aucun joueur pour l\u2019instant.</p></div></div>`;
-  h+=`<div class="pcards">${ps.map(p=>{const a=agg(p.id,ms), i=pinfo(p.id), gk=i.position==='gardien';
-    const stat=gk&&on('saves')&&on('conceded')?{v:pct(T(a,'saves'),T(a,'saves')+T(a,'conceded')),l:'arrêts'}:on('goals')?{v:T(a,'goals')+(on('assists')?' / '+T(a,'assists'):''),l:on('assists')?'buts / PD':'buts'}:{v:a.n,l:'matchs'};
-    return `<button class="pcard" data-a="player" data-v="${p.id}"><span class="badge ${gk?'gk':''}">${esc(p.number??'')}</span>
-      <div><div class="n">${esc(pname(p))}${p.active===false?' <span class="muted small">(ancien)</span>':''}</div><div class="s">${esc(POS[i.position]||'')} · ${a.n} match${a.n>1?'s':''}</div></div>
-      <div class="stat"><b>${stat.v}</b><span>${stat.l}</span></div></button>`;}).join('')}</div>`;
+  let V=0,N=0,D=0,bp=0,bc=0; for(const m of ms){ const r=result(m); if(r) ({V:()=>V++,N:()=>N++,D:()=>D++})[r](); if(isNum(m.scoreFor)) bp+=m.scoreFor; if(isNum(m.scoreAgainst)) bc+=m.scoreAgainst; }
+  const A=ps.map(p=>({p,a:agg(p.id,ms)}));
+  const kmTot=A.reduce((s,x)=>s+T(x.a,'km'),0), rS=A.reduce((s,x)=>s+T(x.a,'rating'),0), rC=A.reduce((s,x)=>s+(x.a.cnt.rating||0),0);
+  h+=`<section class="panel"><h3>Suivi global de l\u2019équipe</h3><div class="kpis">
+    <div class="kpi"><div class="v">${ms.length}</div><div class="l">Matchs</div></div>
+    <div class="kpi"><div class="v">${V}-${N}-${D}</div><div class="l">Victoires, nuls, défaites</div></div>
+    <div class="kpi"><div class="v">${ms.length?nf(bp/ms.length,1):'—'}</div><div class="l">Buts marqués par match</div></div>
+    <div class="kpi"><div class="v">${ms.length?nf(bc/ms.length,1):'—'}</div><div class="l">Buts encaissés par match</div></div>
+    ${on('km')&&kmTot?`<div class="kpi"><div class="v">${nf(kmTot,0)}</div><div class="l">km parcourus par l\u2019équipe</div></div>`:''}
+    ${on('rating')&&rC?`<div class="kpi"><div class="v">${nf(rS/rC,1)}</div><div class="l">Note moyenne</div></div>`:''}
+  </div><p class="sub">Buts marqués et encaissés, match après match</p><div class="legend" style="margin-top:4px"><span><i style="background:var(--turf)"></i>Marqués</span><span><i style="background:var(--loss)"></i>Encaissés</span></div>${teamChart(ms)}</section>`;
+  const anyGk=A.some(x=>x.a.gkN), anyKm=A.some(x=>x.a.cnt.km);
+  const cols=[
+    {k:'n',l:'M',t:'Matchs',v:a=>a.n},
+    {k:'min',l:'Min',t:'Minutes jouées',v:a=>a.min},
+    on('goals')&&{k:'goals',l:'B',t:'Buts',v:a=>T(a,'goals')},
+    on('assists')&&{k:'assists',l:'PD',t:'Passes décisives',v:a=>T(a,'assists')},
+    on('goals')&&on('assists')&&{k:'ga',l:'B+PD/m',t:'Buts et passes par match',v:a=>a.n?(T(a,'goals')+T(a,'assists'))/a.n:null,d:2},
+    on('rating')&&{k:'rating',l:'Note',t:'Note moyenne',v:a=>avg(a,'rating'),d:1},
+    on('km')&&anyKm&&{k:'km',l:'km/m',t:'Distance par match',v:a=>avg(a,'km'),d:1},
+    {k:'motm',l:'HdM',t:'Homme du match',v:a=>a.motm},
+    on('saves')&&on('conceded')&&anyGk&&{k:'sv',l:'% arr.',t:'Pourcentage d\u2019arrêts',v:a=>{const s=T(a,'saves'),c=T(a,'conceded');return a.gkN&&(s+c)?100*s/(s+c):null;},pc:1}
+  ].filter(Boolean);
+  const sk=cols.find(c=>c.k===(S.sort&&S.sort.k))||cols.find(c=>c.k==='goals')||cols[0], dir=(S.sort&&S.sort.k===sk.k)?S.sort.dir:-1;
+  const sorted=A.slice().sort((x,y)=>{ const a=sk.v(x.a), b=sk.v(y.a); return ((b??-1)-(a??-1))*(dir<0?1:-1)||pname(x.p).localeCompare(pname(y.p),'fr'); });
+  h+=`<section class="panel"><h3>Tous les joueurs</h3><p class="muted small" style="margin-top:-6px">Touche un titre pour trier, un nom pour voir son suivi.</p><div class="tw"><table class="st-table"><thead><tr><th>Joueur</th>${cols.map(c=>`<th title="${esc(c.t)}"><button class="sb" data-a="sort" data-v="${c.k}" aria-sort="${c.k===sk.k?(dir<0?'descending':'ascending'):'none'}">${esc(c.l)}${c.k===sk.k?(dir<0?' ▾':' ▴'):''}</button></th>`).join('')}</tr></thead><tbody>
+    ${sorted.map(({p,a})=>`<tr><td><button class="link pl" data-a="player" data-v="${p.id}">${avatar(p.id,28)}<span>${esc(pname(p))}</span></button></td>${cols.map(c=>{const v=c.v(a);return `<td${c.k===sk.k?' class="on"':''}>${v==null?'—':(c.pc?nf(v,0)+' %':nf(v,c.d||0))}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+  const mine=(myProfile()||{}).playerId;
+  const sel=ps.find(p=>p.id===S.playerId)?S.playerId:(ps.find(p=>p.id===mine)?mine:sorted[0].p.id);
+  h+=`<section id="pdetail"><h3 style="margin-bottom:10px">Suivi par joueur</h3><div class="pstrip">${ps.map(p=>`<button class="pchip" data-a="player" data-v="${p.id}" aria-pressed="${p.id===sel}">${avatar(p.id,44)}<span>${esc(shortName(p))}</span></button>`).join('')}</div></section>`;
+  h+=playerDetail(sel,ms);
   return h+'</div>';
 }
+function playerDetail(pid,ms){
+  const p=player(pid);
+  if(!p) return '';
+  const i=pinfo(p.id), a=agg(p.id,ms), ws=weightsOf(p.id), lw=ws[ws.length-1];
+  const isMe=(myProfile()||{}).playerId===p.id;
+  const age=i.birth?Math.floor((Date.now()-new Date(i.birth+'T12:00'))/(365.25*864e5)):null;
+  const canPhoto=S.canEdit&&!(profileOf(p.id)||{}).photo;
+  let h=`<div class="stack">
+  <section class="panel"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p.id,72)}
+    <div style="flex:1;min-width:0"><h2>${esc(i.name)}${i.nickname?` <span class="muted" style="font-weight:500">« ${esc(i.nickname)} »</span>`:''}</h2>
+    <p class="muted">${[(p.number!=null&&p.number!==''?'n° '+p.number:''),POS[i.position],i.foot?'Pied '+i.foot:'',i.height?i.height+' cm':'',age!=null?age+' ans':'',lw?nf(lw.kg,1)+' kg (au '+fdate(lw.d,{day:'numeric',month:'short'})+')':''].filter(Boolean).map(esc).join(' · ')}</p>
+    <div class="row" style="margin-top:6px">${isMe?'<button class="btn sm" data-a="nav" data-v="profil">Modifier mon profil</button>':''}${canPhoto?`<label class="btn sm">${p.photo?'Changer la photo':'Ajouter une photo'}<input type="file" accept="image/*" data-photo="${p.id}" hidden></label>${p.photo?`<button class="btn sm ghost" data-a="photodel" data-v="${p.id}">Retirer</button>`:''}`:''}</div></div></div></section>`;
+  if(!a.n){ h+=`<div class="panel"><p class="muted">Aucun match joué sur cette période.</p></div>`; }
+  else{
+    const keys=['goals','assists','shotsOn','recoveries','rating'].filter(on);
+    h+=`<div class="kpis"><div class="kpi"><div class="v">${a.n}</div><div class="l">Matchs</div></div><div class="kpi"><div class="v">${nf(a.min)}</div><div class="l">Minutes jouées</div></div>
+      ${keys.map(k=>`<div class="kpi"><div class="v">${k==='rating'?nf(avg(a,k),1):nf(T(a,k))}</div><div class="l">${k==='rating'?'Note moyenne':esc(KMAP[k].l)}</div></div>`).join('')}
+      ${a.motm?`<div class="kpi"><div class="v">${a.motm}</div><div class="l">Fois homme du match</div></div>`:''}
+      ${a.gkN?`<div class="kpi"><div class="v">${a.gkN}</div><div class="l">Matchs dans les buts</div></div>`:''}</div>`;
+    const g=gkRatios(a), last=a.rows.slice(0,12).reverse();
+    const dec=`<section class="panel"><h3>Décisif match après match</h3><div class="legend"><span><i style="background:var(--turf)"></i>Buts</span><span><i style="background:var(--bib)"></i>Passes D</span></div>${barChart(last.map(({m,r})=>({a:r.goals||0,b:r.assists||0,lab:fdate(m.date,{day:'numeric',month:'numeric'}),t:(m.opponent||'Match')+' '+fdate(m.date)})))}</section>`;
+    h+=`<div class="grid g2"><section class="panel"><h3>Ratios</h3><div class="ratios">${ratiosFor(a).map(r=>`<div class="ratio"><span class="l">${esc(r.l)}</span><span class="v">${r.v}</span>${r.h?`<span class="h">${esc(r.h)}</span>`:''}</div>`).join('')}</div></section>`;
+    h+= g.length?`<section class="panel"><h3>Gardien de but</h3><p class="muted small" style="margin-top:-6px">${a.gkN} match(s), ${nf(a.gkMin)} min dans les buts</p><div class="ratios">${g.map(r=>`<div class="ratio"><span class="l">${esc(r.l)}</span><span class="v">${r.v}</span>${r.h?`<span class="h">${esc(r.h)}</span>`:''}</div>`).join('')}</div></section></div>${dec}`:`${dec}</div>`;
+  }
+  h+=physique(p.id,a,ms,isMe);
+  h+=`<section class="panel"><div class="spread"><h3>Poids</h3>${lw?`<span class="muted small">${ws.length} pesée(s)</span>`:''}</div>${lineChart(ws,a.rows.map(x=>x.m.date))}<p class="muted small">Les traits en bas marquent les matchs : le poids retenu pour chaque performance est la dernière pesée connue à cette date.</p>
+    ${(S.canEdit&&!profileOf(p.id))?`<div class="row" style="margin-top:8px"><label class="f" style="max-width:150px">Date<input type="date" id="pwd" value="${today()}"></label><label class="f" style="max-width:120px">Poids (kg)<input id="pwk" inputmode="decimal" placeholder="75,5"></label><button class="btn" style="align-self:end" data-a="pweight" data-v="${p.id}">Ajouter la pesée</button></div><p class="muted small">Ce joueur n\u2019a pas encore de compte rattaché : tu peux saisir son poids à sa place.</p>`:''}</section>`;
+  if(a.n){
+    const cols=['goals','assists','shots','shotsOn','recoveries','rating','km'].filter(on).map(k=>KMAP[k]);
+    h+=`<section class="panel"><h3>Historique des matchs</h3><div class="tw"><table><thead><tr><th>Match</th><th>Rés.</th><th>Min</th><th>Poids</th>${cols.map(d=>`<th title="${esc(d.l)}">${esc(d.s)}</th>`).join('')}${a.gkN?'<th>G : arrêts / enc.</th>':''}</tr></thead><tbody>
+      ${a.rows.map(({m,r})=>{const w=weightAt(p.id,m.date), res=result(m);return `<tr><td><button class="link" data-a="match" data-v="${m.id}">${fdate(m.date,{day:'numeric',month:'short'})} · ${esc(m.opponent||'Match')}</button>${m.motm===p.id?' ★':''}</td><td>${res?`<span class="dot ${res}" style="display:inline-grid">${res}</span>`:''}</td><td>${nf(r.min)}</td><td>${w?nf(w.kg,1):'—'}</td>${cols.map(d=>`<td>${nf(r[d.k],d.dec||d.rating?2:0)}</td>`).join('')}${a.gkN?`<td>${r.gk?nf(r.saves||0)+' / '+nf(r.conceded||0):''}</td>`:''}</tr>`;}).join('')}</tbody></table></div></section>`;
+  }
+  return h+'</div>';
+}
+
 function barChart(rows){
   if(!rows.length) return '<p class="muted small">Pas encore de match.</p>';
   const W=560,H=150,pad=22,bw=Math.min(28,(W-pad)/rows.length-6);
@@ -848,45 +1017,19 @@ function lineChart(pts, matchDates){
   s+=`<text x="${padL}" y="${H-4}" font-size="10" fill="var(--muted)">${fdate(new Date(t0).toISOString().slice(0,10),{month:'short',year:'2-digit'})}</text><text x="${W}" y="${H-4}" font-size="10" text-anchor="end" fill="var(--muted)">${fdate(new Date(t1).toISOString().slice(0,10),{month:'short',year:'2-digit'})}</text>`;
   return s+'</svg>';
 }
-function vPlayer(){
-  const p=player(S.playerId);
-  if(!p) return `<div class="panel"><p>Ce joueur n\u2019existe plus.</p><button class="btn" data-a="back">Retour à l\u2019effectif</button></div>`;
-  const i=pinfo(p.id), ms=FM(), a=agg(p.id,ms), ws=weightsOf(p.id), lw=ws[ws.length-1];
-  const isMe=(myProfile()||{}).playerId===p.id;
-  const age=i.birth?Math.floor((Date.now()-new Date(i.birth+'T12:00'))/(365.25*864e5)):null;
-  let h=`<div class="stack"><button class="btn ghost" data-a="back">‹ Effectif</button>
-  <section class="panel"><div class="row" style="align-items:flex-start;gap:14px"><span class="badge lg ${i.position==='gardien'?'gk':''}">${esc(p.number??'')}</span>
-    <div style="flex:1;min-width:0"><h2>${esc(i.name)}${i.nickname?` <span class="muted" style="font-weight:500">« ${esc(i.nickname)} »</span>`:''}</h2>
-    <p class="muted">${[POS[i.position],i.foot?'Pied '+i.foot:'',i.height?i.height+' cm':'',age!=null?age+' ans':'',lw?nf(lw.kg,1)+' kg (au '+fdate(lw.d,{day:'numeric',month:'short'})+')':''].filter(Boolean).map(esc).join(' · ')}</p></div>
-    ${isMe?'<button class="btn sm" data-a="nav" data-v="profil">Modifier mon profil</button>':''}</div></section>`;
-  h+=filtersBar();
-  if(!a.n){ h+=`<div class="panel"><p class="muted">Aucun match joué sur cette période.</p></div>`; }
-  else{
-    const keys=['goals','assists','shotsOn','recoveries','rating','km'].filter(on);
-    h+=`<div class="kpis"><div class="kpi"><div class="v">${a.n}</div><div class="l">Matchs</div></div><div class="kpi"><div class="v">${nf(a.min)}</div><div class="l">Minutes jouées</div></div>
-      ${keys.map(k=>`<div class="kpi"><div class="v">${k==='rating'?nf(avg(a,k),1):k==='km'?nf(T(a,k),1):nf(T(a,k))}</div><div class="l">${k==='rating'?'Note moyenne':k==='km'?'km parcourus':esc(KMAP[k].l)}</div></div>`).join('')}
-      ${a.motm?`<div class="kpi"><div class="v">${a.motm}</div><div class="l">Fois homme du match</div></div>`:''}
-      ${a.gkN?`<div class="kpi"><div class="v">${a.gkN}</div><div class="l">Matchs dans les buts</div></div>`:''}</div>`;
-    h+=`<div class="grid g2"><section class="panel"><h3>Ratios</h3><div class="ratios">${ratiosFor(a).map(r=>`<div class="ratio"><span class="l">${esc(r.l)}</span><span class="v">${r.v}</span>${r.h?`<span class="h">${esc(r.h)}</span>`:''}</div>`).join('')}</div></section>`;
-    const g=gkRatios(a);
-    if(g.length) h+=`<section class="panel"><h3>Gardien de but</h3><p class="muted small" style="margin-top:-6px">${a.gkN} match(s), ${nf(a.gkMin)} min dans les buts</p><div class="ratios">${g.map(r=>`<div class="ratio"><span class="l">${esc(r.l)}</span><span class="v">${r.v}</span>${r.h?`<span class="h">${esc(r.h)}</span>`:''}</div>`).join('')}</div></section>`;
-    else {
-      const last=a.rows.slice(0,12).reverse();
-      h+=`<section class="panel"><h3>Décisif match après match</h3><div class="legend"><span><i style="background:var(--turf)"></i>Buts</span><span><i style="background:var(--bib)"></i>Passes D</span></div>${barChart(last.map(({m,r})=>({a:r.goals||0,b:r.assists||0,lab:fdate(m.date,{day:'numeric',month:'numeric'}),t:(m.opponent||'Match')+' '+fdate(m.date)})))}</section>`;
-    }
-    h+=`</div>`;
-    if(g.length){ const last=a.rows.slice(0,12).reverse(); h+=`<section class="panel"><h3>Décisif match après match</h3><div class="legend"><span><i style="background:var(--turf)"></i>Buts</span><span><i style="background:var(--bib)"></i>Passes D</span></div>${barChart(last.map(({m,r})=>({a:r.goals||0,b:r.assists||0,lab:fdate(m.date,{day:'numeric',month:'numeric'}),t:(m.opponent||'Match')+' '+fdate(m.date)})))}</section>`; }
-  }
-  h+=`<section class="panel"><div class="spread"><h3>Poids</h3>${lw?`<span class="muted small">${ws.length} pesée(s)</span>`:''}</div>${lineChart(ws,a.rows.map(x=>x.m.date))}<p class="muted small">Les traits en bas marquent les matchs : le poids retenu pour chaque performance est la dernière pesée connue à cette date.</p>
-    ${(S.canEdit&&!profileOf(p.id))?`<div class="row" style="margin-top:8px"><label class="f" style="max-width:150px">Date<input type="date" id="pwd" value="${today()}"></label><label class="f" style="max-width:120px">Poids (kg)<input id="pwk" inputmode="decimal" placeholder="75,5"></label><button class="btn" style="align-self:end" data-a="pweight" data-v="${p.id}">Ajouter la pesée</button></div><p class="muted small">Ce joueur n\u2019a pas encore de compte rattaché : tu peux saisir son poids à sa place.</p>`:''}</section>`;
-  if(a.n){
-    const cols=['goals','assists','shots','shotsOn','recoveries','rating','km'].filter(on).map(k=>KMAP[k]);
-    h+=`<section class="panel"><h3>Historique des matchs</h3><div class="tw"><table><thead><tr><th>Match</th><th>Rés.</th><th>Min</th><th>Poids</th>${cols.map(d=>`<th title="${esc(d.l)}">${esc(d.s)}</th>`).join('')}${a.gkN?'<th>G : arrêts / enc.</th>':''}</tr></thead><tbody>
-      ${a.rows.map(({m,r})=>{const w=weightAt(p.id,m.date), res=result(m);return `<tr><td><button class="link" data-a="match" data-v="${m.id}">${fdate(m.date,{day:'numeric',month:'short'})} · ${esc(m.opponent||'Match')}</button></td><td>${res?`<span class="dot ${res}" style="display:inline-grid">${res}</span>`:''}</td><td>${nf(r.min)}</td><td>${w?nf(w.kg,1):'—'}</td>${cols.map(d=>`<td>${nf(r[d.k],d.dec||d.rating?2:0)}</td>`).join('')}${a.gkN?`<td>${r.gk?nf(r.saves||0)+' / '+nf(r.conceded||0):''}</td>`:''}</tr>`;}).join('')}</tbody></table></div></section>`;
-  }
-  return h+'</div>';
+function leagueLink(){
+  const u=cfg().leagueUrl; if(!u||!/^https?:\/\//i.test(u)) return '';
+  let host=''; try{ host=new URL(u).hostname.replace(/^www\./,''); }catch(e){ return ''; }
+  return `<a class="mrow league" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span class="lg-ic" aria-hidden="true">🏆</span><div><div class="o">Le championnat sur ${esc(host)}</div><div class="t">Classement, calendrier et résultats officiels</div></div><span aria-hidden="true">↗</span></a>`;
 }
-
+function lastSession(d){
+  if(!d||!d.playerId) return '';
+  for(const m of played()){ const r=rec(m,d.playerId); if(r&&(isNum(r.km)||isNum(r.hrAvg)))
+    return `<button class="board phys" data-a="player" data-v="${d.playerId}" style="width:100%;text-align:left;border:0;cursor:pointer;margin:6px 0 14px">${PITCH}<div class="in"><div class="meta">Dernière séance, ${fdate(m.date,{day:'numeric',month:'long'})} contre ${esc(m.opponent||'adversaire')}</div>
+      <div class="phys-grid">${isNum(r.km)?`<div><b>${nf(r.km,2)} km</b><span>Distance</span></div>`:''}${isNum(r.min)?`<div><b>${nf(r.min)} min</b><span>Temps de jeu</span></div>`:''}${isNum(r.hrAvg)?`<div><b>${nf(r.hrAvg)} bpm</b><span>Cardio moyen</span></div>`:''}${isNum(r.hrMax)?`<div><b>${nf(r.hrMax)} bpm</b><span>Cardio max</span></div>`:''}${isNum(r.vmax)?`<div><b>${nf(r.vmax,1)} km/h</b><span>Vitesse max</span></div>`:''}</div>
+      <div class="meta" style="margin-top:10px">Voir tous mes graphiques ›</div></div></button>`; }
+  return '';
+}
 /* ----- Mon profil ----- */
 function vProfile(){
   if(!S.uid&&!S.local) return `<div class="panel empty-state"><h2>Connecte-toi pour remplir ton profil</h2><p class="muted">Ton profil est rattaché à ton compte. Ouvre l\u2019app depuis le lien partagé par le club en étant connecté.</p></div>`;
@@ -905,7 +1048,7 @@ function vProfile(){
   const myMatches=S.matches.filter(m=>m.stats&&m.stats[d.playerId]&&m.stats[d.playerId].present).slice(0,15);
   const gpsK=GPS_KEYS.filter(on);
   let h=`<div class="stack"><div class="spread"><h2>Mon profil</h2><button class="btn" data-a="player" data-v="${p.id}">Voir mes stats</button></div>
-  <section class="panel"><div class="row" style="margin-bottom:12px"><span class="badge ${p.position==='gardien'?'gk':''}">${esc(p.number??'')}</span><div><b>${esc(pname(p))}</b><div class="muted small">Nom, numéro et poste officiel sont gérés par le club.</div></div></div>
+  <section class="panel"><div class="row" style="margin-bottom:12px;align-items:flex-start">${avatar(p.id,64)}<div><b>${esc(pname(p))}</b><div class="muted small">Nom, numéro et poste officiel sont gérés par le club.</div><div class="row" style="margin-top:6px"><label class="btn sm">${d.photo?'Changer ma photo':'Ajouter ma photo'}<input type="file" accept="image/*" data-photo="me" hidden></label>${d.photo?'<button class="btn sm ghost" data-a="photodel" data-v="me">Retirer</button>':''}</div></div></div>
     <div class="fields">
       <label class="f">Surnom<input data-pf="nickname" value="${esc(d.nickname||'')}" placeholder="Facultatif"></label>
       <label class="f">Poste préféré<select data-pf="prefPos">${Object.entries(POS).map(([k,l])=>`<option value="${k}" ${(d.prefPos||'champ')===k?'selected':''}>${l}</option>`).join('')}</select></label>
@@ -918,8 +1061,8 @@ function vProfile(){
     ${lineChart(ws,myMatches.map(m=>m.date))}
     ${ws.length?`<div class="roster">${ws.slice().reverse().map((w,i)=>`<div class="r"><span class="nm">${fdate(w.d)}</span><b class="num" style="font-size:1.2rem">${nf(w.kg,1)} kg</b><button class="btn ghost sm" data-a="wdel" data-v="${esc(w.d)}|${w.kg}" aria-label="Supprimer la pesée du ${fdate(w.d)}">Supprimer</button></div>`).join('')}</div>`:''}</section>`;
   if(gpsK.length){
-    h+=`<section class="panel"><h3>Mes données de montre</h3><div class="note" style="margin:4px 0 14px"><b>Synchroniser mes séances</b><p class="small">Dépose un ou plusieurs fichiers de ta montre : Strava, Apple Santé, Samsung Health, Xiaomi, Garmin et les autres marques (FIT, GPX, TCX, CSV ou zip). Chaque séance est rangée sur le match du même jour.</p><label class="btn sm primary" style="margin-top:6px">Choisir les fichiers<input type="file" multiple accept="${ACCEPT}" data-bulk="1" hidden></label></div><p class="muted small">Ou match par match, avec un fichier ou à la main :</p>
-    ${myMatches.length?myMatches.map(m=>{const g=(d.gps||{})[m.id]||{}, st=m.stats[d.playerId]||{};return `<details ${Object.keys(g).length?'':''}><summary>${fdate(m.date,{day:'numeric',month:'short'})} · ${esc(m.opponent||'Match')}${isNum(g.km)||isNum(st.km)?` <span class="muted small">· ${nf(g.km??st.km,2)} km</span>`:''}</summary>
+    h+=`<section class="panel"><h3>Mes données de montre</h3>${lastSession(d)}<div class="note" style="margin:4px 0 14px"><b>Synchroniser mes séances</b><p class="small">Dépose un ou plusieurs fichiers de ta montre : Strava, Apple Santé, Samsung Health, Xiaomi, Garmin et les autres marques (FIT, GPX, TCX, CSV ou zip). Chaque séance est rangée sur le match du même jour.</p><label class="btn sm primary" style="margin-top:6px">Choisir les fichiers<input type="file" multiple accept="${ACCEPT}" data-bulk="1" hidden></label></div><p class="muted small">Ou match par match, avec un fichier ou à la main :</p>
+    ${myMatches.length?myMatches.map(m=>{const g=(d.gps||{})[m.id]||{}, st=m.stats[d.playerId]||{};return `<details ${Object.keys(g).length?'':''}><summary>${fdate(m.date,{day:'numeric',month:'short'})} · ${esc(m.opponent||'Match')}${g.from?` <span class="muted small">· ${esc(g.from)}–${esc(g.to)}</span>`:''}${isNum(g.km)||isNum(st.km)?` <span class="muted small">· ${nf(g.km??st.km,2)} km</span>`:''}</summary>
       <div class="mini">${gpsK.map(k=>`<label class="f">${esc(KMAP[k].s)}<input inputmode="decimal" data-gf="${m.id}:${k}" value="${esc(g[k]??'')}"></label>`).join('')}
       <label class="btn sm" style="align-self:end">Importer un fichier<input type="file" accept="${ACCEPT}" data-impm="${m.id}" hidden></label></div>
       <div class="row" style="margin:10px 0"><button class="btn sm" data-a="profsave">Enregistrer</button></div></details>`;}).join(''):'<p class="muted">Aucun match où tu es noté présent pour l\u2019instant.</p>'}
@@ -938,13 +1081,14 @@ function vProfile(){
 /* ----- Réglages ----- */
 function vSettings(){
   if(!S.canEdit) return `<div class="panel"><p>Les réglages sont réservés au responsable du club.</p></div>`;
-  if(!S.setDraft) S.setDraft={clubName:cfg().clubName,matchLength:cfg().matchLength,seasonStartMonth:cfg().seasonStartMonth};
+  if(!S.setDraft) S.setDraft={clubName:cfg().clubName,matchLength:cfg().matchLength,seasonStartMonth:cfg().seasonStartMonth,leagueUrl:cfg().leagueUrl||''};
   const d=S.setDraft, months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
   let h=`<div class="stack"><h2>Réglages</h2>
   <section class="panel"><h3>Le club</h3><div class="fields">
     <label class="f">Nom du club<input data-sf="clubName" value="${esc(d.clubName)}"></label>
     <label class="f">Durée d\u2019un match (min)<input inputmode="numeric" data-sf="matchLength" value="${esc(d.matchLength)}"></label>
     <label class="f">Début de saison<select data-sf="seasonStartMonth">${months.map((m,i)=>`<option value="${i+1}" ${+d.seasonStartMonth===i+1?'selected':''}>${m}</option>`).join('')}</select></label>
+    <label class="f" style="grid-column:1/-1">Lien du championnat<input type="url" inputmode="url" data-sf="leagueUrl" value="${esc(d.leagueUrl||'')}" placeholder="https://myurban.fr/"></label>
   </div><div class="row" style="margin-top:12px"><button class="btn primary" data-a="setsave">Enregistrer</button></div></section>
   <section class="panel"><div class="spread"><h3 style="margin:0">Indicateurs suivis</h3><div class="row"><button class="btn sm" data-a="kpreset" data-v="ess">Essentiels</button><button class="btn sm" data-a="kpreset" data-v="all">Tout activer</button></div></div>
   <p class="muted small">Seuls les indicateurs activés apparaissent dans la saisie et les tableaux. En désactiver un ne supprime aucune donnée.</p>
@@ -956,7 +1100,7 @@ function vSettings(){
     <label class="f" style="min-width:150px">Poste<select id="np-pos">${Object.entries(POS).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
     <button class="btn primary" data-a="addp">Ajouter</button></div>
     <div class="roster" style="margin-top:12px">${all.length?all.map(p=>S.editPlayer===p.id?`<div class="r"><input class="nm" id="ep-name" value="${esc(p.name)}" style="border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)"><input id="ep-num" value="${esc(p.number??'')}" inputmode="numeric" style="width:64px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)"><select id="ep-pos" style="border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)">${Object.entries(POS).map(([k,l])=>`<option value="${k}" ${p.position===k?'selected':''}>${l}</option>`).join('')}</select><button class="btn sm primary" data-a="savep" data-v="${p.id}">Enregistrer</button><button class="btn sm ghost" data-a="cancelp">Annuler</button></div>`
-      :`<div class="r"><span class="badge ${p.position==='gardien'?'gk':''}" style="width:30px;height:30px;font-size:.95rem;border-radius:7px">${esc(p.number??'')}</span><span class="nm"><b>${esc(pname(p))}</b>${p.active===false?' <span class="muted small">(retiré)</span>':''}<br><span class="muted small">${esc(POS[p.position]||'')}${linkedLabel(p.id)}</span></span>
+      :`<div class="r">${avatar(p.id,30)}<span class="nm"><b>${esc(pname(p))}</b>${p.active===false?' <span class="muted small">(retiré)</span>':''}<br><span class="muted small">${esc(POS[p.position]||'')}${linkedLabel(p.id)}</span></span>
         <button class="btn sm ghost" data-a="editp" data-v="${p.id}">Modifier</button>
         ${p.active===false?`<button class="btn sm ghost" data-a="restorep" data-v="${p.id}">Réintégrer</button><button class="btn sm ghost danger" data-a="delp" data-v="${p.id}">Supprimer</button>`:`<button class="btn sm ghost" data-a="archp" data-v="${p.id}">Retirer</button>`}</div>`).join(''):'<p class="muted">Aucun joueur. Ajoute le premier ci-dessus.</p>'}</div>
     <p class="muted small" style="margin-top:8px">« Retirer » sort le joueur de l\u2019effectif et de la feuille de match en gardant tout son historique. « Supprimer » efface sa fiche ; ses lignes de match restent mais n\u2019apparaissent plus dans les classements.</p></section>
@@ -987,7 +1131,7 @@ function parseTrack(text){
   if(tps.length){
     for(const lap of by(xml,'Lap')){ lapDist+=+tx(lap,'DistanceMeters')||0; lapTime+=+tx(lap,'TotalTimeSeconds')||0;
       const a=by(lap,'AverageHeartRateBpm')[0], m=by(lap,'MaximumHeartRateBpm')[0]; if(a) hrA.push(+tx(a,'Value')); if(m) hrM.push(+tx(m,'Value')); }
-    pts=tps.map(tp=>{const hr=by(tp,'HeartRateBpm')[0];return {t:Date.parse(tx(tp,'Time')),lat:parseFloat(tx(tp,'LatitudeDegrees')),lon:parseFloat(tx(tp,'LongitudeDegrees')),hr:hr?+tx(hr,'Value'):null};});
+    pts=tps.map(tp=>{const hr=by(tp,'HeartRateBpm')[0];return {t:Date.parse(tx(tp,'Time')),lat:parseFloat(tx(tp,'LatitudeDegrees')),lon:parseFloat(tx(tp,'LongitudeDegrees')),hr:hr?+tx(hr,'Value'):null,d:tx(tp,'DistanceMeters')!==''?parseFloat(tx(tp,'DistanceMeters')):null};});
   } else {
     pts=by(xml,'trkpt').map(tp=>({t:Date.parse(tx(tp,'time')),lat:parseFloat(tp.getAttribute('lat')),lon:parseFloat(tp.getAttribute('lon')),hr:parseFloat(tx(tp,'hr'))||null}));
   }
@@ -1008,7 +1152,7 @@ function parseTrack(text){
   const r2=v=>v==null?null:Math.round(v*100)/100;
   const t0=times.length?new Date(Math.min(...times)):null;
   const date=t0?t0.getFullYear()+'-'+String(t0.getMonth()+1).padStart(2,'0')+'-'+String(t0.getDate()).padStart(2,'0'):null;
-  return {date,km:km>0?r2(km):null,min:min?Math.round(min):null,hrAvg:hrAvg?Math.round(hrAvg):null,hrMax:hrMax?Math.round(hrMax):null,vmax:vmax>0?Math.round(vmax*10)/10:null};
+  return {pts:pts.filter(p=>isFinite(p.t)),date,km:km>0?r2(km):null,min:min?Math.round(min):null,hrAvg:hrAvg?Math.round(hrAvg):null,hrMax:hrMax?Math.round(hrMax):null,vmax:vmax>0?Math.round(vmax*10)/10:null};
 }
 /* ---------- Moteur d'import multi-marques ---------- */
 const ACCEPT='.gpx,.tcx,.fit,.csv,.xml,.json,.zip,.gz';
@@ -1027,23 +1171,29 @@ function toDate(v, offset){
   const t=Date.parse(s); return isFinite(t)?ymd(new Date(t)):null;
 }
 const r1=v=>isNum(v)?Math.round(v*10)/10:null, r2=v=>isNum(v)?Math.round(v*100)/100:null, ri=v=>isNum(v)&&v>0?Math.round(v):null;
-function act(o){ return {date:o.date,sport:o.sport||null,km:o.km>0?r2(o.km):null,min:ri(o.min),hrAvg:ri(o.hrAvg),hrMax:ri(o.hrMax),vmax:o.vmax>0&&o.vmax<45?r1(o.vmax):null}; }
+function act(o){ const r={date:o.date,sport:o.sport||null,km:o.km>0?r2(o.km):null,min:ri(o.min),hrAvg:ri(o.hrAvg),hrMax:ri(o.hrMax),vmax:o.vmax>0&&o.vmax<45?r1(o.vmax):null}; if(o.pts&&o.pts.length) r.pts=o.pts; return r; }
 
 /* FIT : Garmin, Coros, Suunto, Polar, Wahoo, Amazfit */
 function parseFit(buf){
   const dv=new DataView(buf);
   if(buf.byteLength<14||String.fromCharCode(dv.getUint8(8),dv.getUint8(9),dv.getUint8(10),dv.getUint8(11))!=='.FIT') throw new Error('FIT invalide');
   const hs=dv.getUint8(0), end=Math.min(hs+dv.getUint32(4,true),buf.byteLength);
-  let p=hs; const defs={}, sessions=[];
+  let p=hs; const defs={}, sessions=[], recs=[]; let lastTs=null;
   const val=(o,size,le)=>{ if(o+size>buf.byteLength) return null;
     if(size===1){const v=dv.getUint8(o);return v===0xFF?null:v;}
     if(size===2){const v=dv.getUint16(o,le);return v===0xFFFF?null:v;}
     if(size===4){const v=dv.getUint32(o,le);return v===0xFFFFFFFF?null:v;}
     return null; };
-  const data=d=>{ const rec={}; for(const f of d.fields){ if(d.gm===18) rec[f.num]=val(p,f.size,d.le); p+=f.size; } p+=d.dev; if(d.gm===18) sessions.push(rec); };
+  const sval=(o,le)=>{ if(o+4>buf.byteLength) return null; const v=dv.getInt32(o,le); return v===0x7FFFFFFF?null:v; };
+  const data=(d,cts)=>{ const rec={}; const keep=d.gm===18||d.gm===20;
+    for(const f of d.fields){ if(keep||f.num===253){ rec[f.num]=(d.gm===20&&(f.num===0||f.num===1)&&f.size===4)?sval(p,d.le):val(p,f.size,d.le); } p+=f.size; }
+    p+=d.dev;
+    if(rec[253]!=null) lastTs=rec[253]; else if(cts!=null&&lastTs!=null){ let t=(lastTs&~0x1F)+cts; if(cts<(lastTs&0x1F)) t+=0x20; lastTs=t; rec[253]=t; }
+    if(d.gm===18) sessions.push(rec);
+    if(d.gm===20&&rec[253]!=null){ const sc=180/2147483648; recs.push({t:(rec[253]+631065600)*1000,lat:rec[0]!=null?rec[0]*sc:NaN,lon:rec[1]!=null?rec[1]*sc:NaN,hr:rec[3],d:rec[5]!=null?rec[5]/100:null,v:rec[73]!=null?rec[73]/1000:(rec[6]!=null?rec[6]/1000:null)}); } };
   while(p<end){
     const h=dv.getUint8(p++);
-    if(h&0x80){ const d=defs[(h>>5)&3]; if(!d) break; data(d); continue; }
+    if(h&0x80){ const d=defs[(h>>5)&3]; if(!d) break; data(d,h&0x1F); continue; }
     const lt=h&0x0F;
     if(h&0x40){
       p++; const le=dv.getUint8(p++)===0; const gm=dv.getUint16(p,le); p+=2; const n=dv.getUint8(p++); const fields=[];
@@ -1052,11 +1202,12 @@ function parseFit(buf){
       defs[lt]={gm,le,fields,dev};
     } else { const d=defs[lt]; if(!d) break; data(d); }
   }
-  return sessions.filter(s=>s[2]!=null).map(s=>act({
+  return sessions.filter(s=>s[2]!=null).map(s=>{ const t0=(s[2]+631065600)*1000, t1=t0+(s[7]!=null?s[7]:864e5);
+    return act({ pts:recs.filter(r=>r.t>=t0-1000&&r.t<=t1+1000),
     date:ymd(new Date((s[2]+631065600)*1000)), sport:s[5]===7?'Soccer':null,
     km:s[9]!=null?s[9]/100000:null, min:s[7]!=null?s[7]/60000:null,
     hrAvg:s[16], hrMax:s[17], vmax:(s[125]!=null?s[125]:s[15])!=null?(s[125]!=null?s[125]:s[15])/1000*3.6:null
-  }));
+  }); });
 }
 
 /* Apple Santé : export.xml (lecture en flux, le fichier peut être énorme) */
@@ -1163,7 +1314,7 @@ async function extractActivities(file, depth=0){
   const text=await file.text(), s=text.trim();
   if(n.endsWith('.json')||s[0]==='{'||s[0]==='['){
     const j=JSON.parse(s); const list=Array.isArray(j)?j:(j.activities||[]);
-    return list.filter(a=>a&&typeof a.date==='string').map(a=>act(Object.assign({},a,{sport:isFoot(a.sport)?'Soccer':a.sport})));
+    return list.filter(a=>a&&typeof a.date==='string').map(a=>act(Object.assign({},a,{sport:isFoot(a.sport)?'Soccer':a.sport,pts:streamPts(a)})));
   }
   const r=parseTrack(text); return r.date?[act(r)]:[];
 }
@@ -1188,16 +1339,105 @@ async function bulkImport(files){
     try{ const a=await extractActivities(f); if(a.length) acts.push(...a); else bad++; }
     catch(e){ bad++; if(e&&e.message==='zip') toast('Lecture des zip indisponible : décompresse le fichier puis dépose son contenu.'); }
   }
-  const mine=S.matches.filter(m=>m.stats&&m.stats[d.playerId]&&m.stats[d.playerId].present);
-  d.gps=d.gps||{}; let done=0; const used=new Set();
+  const mine=S.matches.filter(m=>!m.planned&&m.stats&&m.stats[d.playerId]&&m.stats[d.playerId].present);
+  d.gps=d.gps||{}; let done=0, skipped=0; const used=new Set();
   for(const m of mine){
     const best=bestFor(acts,m.date); if(!best) continue; best._used=true; used.add(best);
-    const g=d.gps[m.id]=d.gps[m.id]||{}; for(const k of GPS_KEYS) if(isNum(best[k])) g[k]=best[k];
+    let r=best;
+    if(best.pts&&best.pts.length>=10){ r=await adjustWindow(m,best); if(!r){ skipped++; continue; } }
+    const g=d.gps[m.id]={}; for(const k of GPS_KEYS) if(isNum(r[k])) g[k]=r[k]; if(r.from){ g.from=r.from; g.to=r.to; }
     done++;
   }
   if(done){ const out=clone(d); delete out.id; out.height=parseNum(out.height); out.updatedAt=Date.now(); if(await write('profiles/'+S.uid,out)){ S.prof=null; S.profDirty=false; render(); } }
   const left=acts.length-used.size;
-  toast((done?done+' match(s) complété(s)':'Aucun match ne correspond aux dates des séances')+(left?', '+left+' séance(s) sans match ce jour-là':'')+(bad?', '+bad+' fichier(s) illisible(s)':'')+'.');
+  toast((done?done+' match(s) complété(s)':(skipped?'Aucune séance retenue':'Aucun match ne correspond aux dates des séances'))+(skipped?', '+skipped+' ignorée(s)':'')+(left?', '+left+' séance(s) sans match ce jour-là':'')+(bad?', '+bad+' fichier(s) illisible(s)':'')+'.');
+}
+
+/* ---------- Plage horaire de l'import ---------- */
+function hav(a,b){ const R=6371000, rad=x=>x*Math.PI/180, dLa=rad(b.lat-a.lat), dLo=rad(b.lon-a.lon); const h=Math.sin(dLa/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function cumDist(w){
+  const withD=w.filter(p=>isNum(p.d)).length;
+  const C=new Array(w.length).fill(0);
+  if(withD>=w.length*0.8){ let last=null, base=null; for(let i=0;i<w.length;i++){ const d=isNum(w[i].d)?w[i].d:last; if(d!=null){ if(base==null) base=d; last=d; } C[i]=last!=null?Math.max(0,last-base):0; } return C; }
+  for(let i=1;i<w.length;i++){ const a=w[i-1], b=w[i]; C[i]=C[i-1]+(isFinite(a.lat)&&isFinite(b.lat)&&isFinite(a.lon)&&isFinite(b.lon)?hav(a,b):0); }
+  return C;
+}
+function summarize(pts,t0,t1){
+  const w=pts.filter(p=>p.t>=t0&&p.t<=t1); if(w.length<2) return null;
+  const C=cumDist(w), km=C[C.length-1]/1000, min=(w[w.length-1].t-w[0].t)/60000;
+  const hr=w.map(p=>p.hr).filter(v=>isNum(v)&&v>30&&v<250);
+  let vmax=0;
+  const vs=w.map(p=>p.v).filter(v=>isNum(v)&&v>0);
+  if(vs.length>w.length*0.5){ for(let i=0,j=0;i<w.length;i++){ while(j<w.length&&w[j].t-w[i].t<5000) j++; if(j>=w.length) break; let s=0,n=0; for(let k=i;k<=j;k++) if(isNum(w[k].v)){ s+=w[k].v; n++; } if(n){ const v=s/n*3.6; if(v<40&&v>vmax) vmax=v; } } }
+  else { for(let i=0,j=0;i<w.length;i++){ while(j<w.length&&w[j].t-w[i].t<5000) j++; if(j>=w.length) break; const v=(C[j]-C[i])/((w[j].t-w[i].t)/1000)*3.6; if(v<40&&v>vmax) vmax=v; } }
+  return act({date:null,km,min,hrAvg:hr.length?hr.reduce((a,b)=>a+b,0)/hr.length:null,hrMax:hr.length?Math.max(...hr):null,vmax});
+}
+function seriesOf(pts){
+  const C=cumDist(pts), out=[];
+  const useV=pts.filter(p=>isNum(p.v)).length>pts.length*0.5, useSpeed=useV||C[C.length-1]>50;
+  for(let i=0,j=0,k=0;i<pts.length;i++){
+    let y=null;
+    if(useSpeed){ if(useV) y=isNum(pts[i].v)?pts[i].v*3.6:null; else { while(k<i&&pts[i].t-pts[k].t>10000) k++; while(j<pts.length-1&&pts[j].t-pts[i].t<10000) j++; const dt=(pts[j].t-pts[k].t)/1000; y=dt>0?(C[j]-C[k])/dt*3.6:null; } }
+    else y=isNum(pts[i].hr)?pts[i].hr:null;
+    if(y!=null&&y<45||(!useSpeed&&y!=null)) out.push({t:pts[i].t,y});
+  }
+  const step=Math.max(1,Math.floor(out.length/240));
+  return {kind:useSpeed?'vitesse':'cardio',pts:out.filter((_,i)=>i%step===0)};
+}
+const hhmm=t=>{ const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+function adjustWindow(m,a){
+  return new Promise(resolve=>{
+    const pts=a.pts.filter(p=>isFinite(p.t)).sort((x,y)=>x.t-y.t);
+    if(pts.length<10){ resolve(a); return; }
+    const A=pts[0].t, B=pts[pts.length-1].t, total=Math.max(2,Math.ceil((B-A)/60000));
+    const dur=(parseNum(m.duration)||cfg().matchLength);
+    const ko=m.time?new Date(m.date+'T'+m.time).getTime():NaN;
+    let ks=null, ke=null, note;
+    if(isFinite(ko)){ const s0=Math.round((ko-A)/60000), e0=s0+dur; if(e0>0&&s0<total){ ks=Math.max(0,s0); ke=Math.min(total,e0); note=`Plage proposée : l\u2019horaire du match, coup d\u2019envoi à ${m.time} pour ${dur} min. Ajuste si le match a commencé plus tard ou duré plus longtemps.`; } else note=`Ta séance (${hhmm(A)} à ${hhmm(B)}) ne recouvre pas l\u2019horaire du match (${m.time}). Toute la séance est proposée : ajuste-la.`; }
+    else note='Aucune heure de coup d\u2019envoi n\u2019est renseignée pour ce match : toute la séance est proposée. Ajuste le début et la fin.';
+    let s=ks??0, e=ke??total;
+    const ser=seriesOf(pts), W=560, H=130, X=t=>(t-A)/(B-A||1)*W;
+    const ymax=Math.max(1,...ser.pts.map(p=>p.y));
+    const path=ser.pts.length?'M'+ser.pts.map(p=>X(p.t).toFixed(1)+','+(H-p.y/ymax*(H-8)).toFixed(1)).join('L')+`L${X(ser.pts[ser.pts.length-1].t).toFixed(1)},${H}L${X(ser.pts[0].t).toFixed(1)},${H}Z`:'';
+    const ov=document.createElement('div'); ov.className='ov'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Ajuster la plage horaire');
+    ov.innerHTML=`<div class="ovp"><h3>Plage horaire du match</h3>
+      <p class="muted small">${fdate(m.date,{weekday:'long',day:'numeric',month:'long'})} contre ${esc(m.opponent||'l\u2019adversaire')}. Séance enregistrée de ${hhmm(A)} à ${hhmm(B)}.</p>
+      <p class="note small" style="margin:8px 0">${esc(note)}</p>
+      <div class="ovchart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart" role="img" aria-label="${ser.kind==='vitesse'?'Vitesse':'Fréquence cardiaque'} pendant la séance"><path d="${path}" fill="var(--turf)" opacity=".35"/><rect id="ov-l" x="0" y="0" height="${H}" fill="var(--bg)" opacity=".75"/><rect id="ov-r" y="0" height="${H}" fill="var(--bg)" opacity=".75"/><line id="ov-a" y1="0" y2="${H}" stroke="var(--bib)" stroke-width="3"/><line id="ov-b" y1="0" y2="${H}" stroke="var(--bib)" stroke-width="3"/></svg>
+      <div class="spread small muted"><span>${hhmm(A)}</span><span>${ser.kind==='vitesse'?'Vitesse':'Cardio'} pendant la séance</span><span>${hhmm(B)}</span></div></div>
+      <label class="f">Début : <b id="ov-sl"></b><input type="range" id="ov-s" min="0" max="${total}" step="1" value="${s}"></label>
+      <label class="f" style="margin-top:6px">Fin : <b id="ov-el"></b><input type="range" id="ov-e" min="0" max="${total}" step="1" value="${e}"></label>
+      <div class="chips" style="margin-top:10px">${ks!=null?'<button class="chip" id="ov-m">Horaire du match</button>':''}<button class="chip" id="ov-all">Toute la séance</button></div>
+      <div class="phys-grid ovsum" id="ov-sum"></div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" id="ov-skip">Ignorer cette séance</button><button class="btn primary" id="ov-ok">Valider</button></div></div>`;
+    document.body.appendChild(ov);
+    const $o=id=>ov.querySelector('#'+id); let cur=null;
+    const upd=()=>{
+      const t0=A+s*60000, t1=Math.min(B,A+e*60000);
+      $o('ov-sl').textContent=hhmm(t0); $o('ov-el').textContent=hhmm(t1)+' ('+(e-s)+' min)';
+      const xa=X(t0), xb=X(t1);
+      $o('ov-l').setAttribute('width',Math.max(0,xa)); $o('ov-r').setAttribute('x',xb); $o('ov-r').setAttribute('width',Math.max(0,W-xb));
+      $o('ov-a').setAttribute('x1',xa); $o('ov-a').setAttribute('x2',xa); $o('ov-b').setAttribute('x1',xb); $o('ov-b').setAttribute('x2',xb);
+      cur=summarize(pts,t0,t1);
+      $o('ov-sum').innerHTML=cur?[[cur.km!=null?nf(cur.km,2)+' km':'—','Distance'],[cur.hrAvg?cur.hrAvg+' bpm':'—','Cardio moyen'],[cur.hrMax?cur.hrMax+' bpm':'—','Cardio max'],[cur.vmax?nf(cur.vmax,1)+' km/h':'—','Vitesse max']].map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join(''):'<p class="muted">Plage trop courte.</p>';
+      $o('ov-ok').disabled=!cur;
+    };
+    const close=v=>{ document.removeEventListener('keydown',esck); ov.remove(); resolve(v); };
+    const esck=ev=>{ if(ev.key==='Escape') close(null); };
+    document.addEventListener('keydown',esck);
+    $o('ov-s').addEventListener('input',ev=>{ s=Math.min(+ev.target.value,e-1); ev.target.value=s; upd(); });
+    $o('ov-e').addEventListener('input',ev=>{ e=Math.max(+ev.target.value,s+1); ev.target.value=e; upd(); });
+    if(ks!=null) $o('ov-m').addEventListener('click',()=>{ s=ks; e=ke; $o('ov-s').value=s; $o('ov-e').value=e; upd(); });
+    $o('ov-all').addEventListener('click',()=>{ s=0; e=total; $o('ov-s').value=s; $o('ov-e').value=e; upd(); });
+    $o('ov-skip').addEventListener('click',()=>close(null));
+    $o('ov-ok').addEventListener('click',()=>{ if(cur) close(Object.assign({},cur,{from:hhmm(A+s*60000),to:hhmm(Math.min(B,A+e*60000))})); });
+    upd(); $o('ov-ok').focus();
+  });
+}
+function streamPts(a){
+  const t0=Date.parse(a.start); const st=a.stream;
+  if(!isFinite(t0)||!st||!Array.isArray(st.t)) return undefined;
+  return st.t.map((s,i)=>({t:t0+s*1000,d:st.d?st.d[i]:null,hr:st.hr?st.hr[i]:null,v:st.v?st.v[i]:null}));
 }
 
 /* ---------- Navigation ---------- */
@@ -1215,7 +1455,7 @@ function leaveGuard(){
   S.editing=null; S.editDirty=false; S.plan=null; S.planDirty=false; S.feeOpen=null; S.prof=null; S.profDirty=false; S.setDraft=null; S.setDirty=false; S.editPlayer=null;
   return true;
 }
-function nav(token){ if(!leaveGuard()) return; route(token); go(token); render(); window.scrollTo(0,0); }
+function nav(token){ if(!leaveGuard()) return; route(token); go(token); render(); const pd=token.startsWith('j-')&&document.getElementById('pdetail'); if(pd) window.scrollTo(0,pd.getBoundingClientRect().top+window.scrollY-72); else window.scrollTo(0,0); }
 window.addEventListener('hashchange',()=>{ route(location.hash.slice(1)); render(); });
 
 /* ---------- Événements ---------- */
@@ -1239,7 +1479,7 @@ document.addEventListener('click', async e=>{
     case 'step': step(b.dataset.p,b.dataset.k,+b.dataset.d); break;
     case 'kpi': { const k=cfg().kpis.slice(); const i=k.indexOf(v); if(i>=0) k.splice(i,1); else k.push(v); await write('club/settings',Object.assign({},DEFAULTS,S.settings||{},{kpis:k})); break; }
     case 'kpreset': await write('club/settings',Object.assign({},DEFAULTS,S.settings||{},{kpis:v==='all'?KPIS.map(x=>x.k):DEFAULTS.kpis})); toast(v==='all'?'Tous les indicateurs sont activés.':'Retour aux indicateurs essentiels.'); break;
-    case 'setsave': { const d=S.setDraft; const data=Object.assign({},DEFAULTS,S.settings||{},{clubName:(d.clubName||'').trim()||DEFAULTS.clubName,matchLength:parseNum(d.matchLength)||50,seasonStartMonth:+d.seasonStartMonth||9}); if(await write('club/settings',data)){ S.setDirty=false; S.setDraft=null; toast('Réglages enregistrés.'); render(); } break; }
+    case 'setsave': { const d=S.setDraft; const data=Object.assign({},DEFAULTS,S.settings||{},{clubName:(d.clubName||'').trim()||DEFAULTS.clubName,matchLength:parseNum(d.matchLength)||50,seasonStartMonth:+d.seasonStartMonth||9,leagueUrl:(d.leagueUrl||'').trim()}); if(await write('club/settings',data)){ S.setDirty=false; S.setDraft=null; toast('Réglages enregistrés.'); render(); } break; }
     case 'addp': { const n=document.getElementById('np-name').value.trim(); if(!n){ toast('Indique le nom du joueur.'); return; } const num=parseNum(document.getElementById('np-num').value);
       const id=rid(); if(await write('players/'+id,{name:n,number:num,position:document.getElementById('np-pos').value,active:true,weights:[],createdAt:Date.now()})) toast(n+' ajouté à l\u2019effectif.'); break; }
     case 'editp': S.editPlayer=v; render(); break;
@@ -1279,6 +1519,10 @@ document.addEventListener('click', async e=>{
     case 'feedue': { const [k,pid]=v.split('|'); const raw=document.getElementById('fee-due').value.trim(); const f=stripId(feeDoc(k)); f.perPlayer=Object.assign({},f.perPlayer||{});
       if(raw===''){ delete f.perPlayer[pid]; } else { const x=parseNum(raw); if(x==null||x<0){ toast('Indique un montant valide.'); return; } f.perPlayer[pid]=x; }
       if(await write('fees/'+k,f)) toast(raw===''?'Montant standard appliqué.':(parseNum(raw)===0?pname(player(pid))+' est exonéré.':'Montant dû mis à jour.')); break; }
+    case 'sort': S.sort={k:v,dir:(S.sort&&S.sort.k===v)?-S.sort.dir:-1}; render(); break;
+    case 'photodel': if(!confirm('Retirer la photo ?')) return;
+      if(v==='me'){ const d=clone(S.prof||myProfile()); delete d.photo; delete d.id; d.height=parseNum(d.height); d.updatedAt=Date.now(); if(await write('profiles/'+S.uid,d)){ S.prof=null; S.profDirty=false; render(); } }
+      else { const p=player(v); if(p){ const o=stripId(p); delete o.photo; await write('players/'+v,o); render(); } } break;
     case 'wdel': { const [dd,kg]=v.split('|'); const d=S.prof; d.weights=(d.weights||[]).filter(x=>!(x.d===dd&&String(x.kg)===kg)); const out=clone(d); delete out.id; out.updatedAt=Date.now(); if(await write('profiles/'+S.uid,out)){ S.prof=null; S.profDirty=false; render(); } break; }
   }
 });
@@ -1287,13 +1531,20 @@ document.addEventListener('change', async e=>{
   const t=e.target;
   if(t.dataset.a==='fperiod'){ S.filter.period=t.value; render(); return; }
   if(t.dataset.a==='feeseason'){ S.feeSeason=t.value; S.feeOpen=null; render(); return; }
+  if(t.dataset.photo){ const f=t.files&&t.files[0]; t.value=''; if(!f) return;
+    let data; try{ data=await photoFromFile(f); }catch(err){ toast('Impossible de lire cette image. Essaie une photo JPEG ou PNG.'); return; }
+    if(t.dataset.photo==='me'){ const d=clone(S.prof||myProfile()); d.photo=data; delete d.id; d.height=parseNum(d.height); d.updatedAt=Date.now(); if(await write('profiles/'+S.uid,d)){ S.prof=null; S.profDirty=false; toast('Photo enregistrée.'); render(); } }
+    else { const p=player(t.dataset.photo); if(p&&await write('players/'+p.id,Object.assign(stripId(p),{photo:data}))){ toast('Photo enregistrée.'); render(); } }
+    return; }
   if(t.dataset.bulk){ const files=Array.from(t.files||[]); t.value=''; if(files.length) bulkImport(files); return; }
   if(t.dataset.imp||t.dataset.impm){
     const f=t.files&&t.files[0]; if(!f) return;
     try{
-      const r=await readTrack(f, t.dataset.imp?S.editing.date:(S.matches.find(m=>m.id===t.dataset.impm)||{}).date);
+      const mm=t.dataset.imp?S.editing:(S.matches.find(m=>m.id===t.dataset.impm)||{});
+      let r=await readTrack(f, mm.date);
+      if(r.pts&&r.pts.length>=10){ r=await adjustWindow(mm,r); if(!r){ t.value=''; return; } }
       if(t.dataset.imp){ const st=S.editing.stats[t.dataset.imp]; for(const k of GPS_KEYS) if(r[k]!=null) st[k]=r[k]; S.editDirty=true; render(); }
-      else { const d=S.prof; d.gps=d.gps||{}; const g=d.gps[t.dataset.impm]=d.gps[t.dataset.impm]||{}; for(const k of GPS_KEYS) if(r[k]!=null) g[k]=r[k]; S.profDirty=true; render(); }
+      else { const d=S.prof; d.gps=d.gps||{}; const g=d.gps[t.dataset.impm]=d.gps[t.dataset.impm]||{}; for(const k of GPS_KEYS) if(r[k]!=null) g[k]=r[k]; if(r.from){ g.from=r.from; g.to=r.to; } S.profDirty=true; render(); }
     }catch(err){ toast(err&&err.message==='vide'?'Aucune séance trouvée dans ce fichier.':'Impossible de lire ce fichier. Formats acceptés : FIT, GPX, TCX, CSV, export Apple Santé, zip.'); }
     t.value=''; return;
   }
@@ -1305,7 +1556,7 @@ function bindInput(t){
     const f=t.dataset.ef;
     if(f.startsWith('p:')){ const [,pid,k]=f.split(':'); S.editing.stats[pid][k]=parseNum(t.value); }
     else S.editing[f]=t.value;
-    S.editDirty=true; const cb=document.getElementById('checkbar'); if(cb) cb.innerHTML=checks(); return;
+    S.editDirty=true; refreshChecks(); return;
   }
   if(t.dataset.plf!=null&&S.plan){ S.plan[t.dataset.plf]=t.value; S.planDirty=true; return; }
   if(t.dataset.pf!=null&&S.prof){ S.prof[t.dataset.pf]=t.value; S.profDirty=true; return; }
