@@ -242,6 +242,11 @@ textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var
 <div id="toast" class="toast" hidden></div>
 
 <script>
+window.addEventListener('error',e=>showFatal(e.message));
+window.addEventListener('unhandledrejection',e=>showFatal((e.reason&&(e.reason.message||e.reason))||'inconnue'));
+function showFatal(m){ const a=document.getElementById('app'); if(a) a.innerHTML='<section class="panel" style="max-width:560px;margin:24px auto"><h2>L\u2019app n\u2019a pas pu démarrer</h2><p class="muted">Erreur : '+String(m).replace(/[<>&]/g,'')+'</p><p class="muted small">Envoie ce message au responsable de l\u2019app.</p></section>'; }
+</script>
+<script>
 "use strict";
 /* ---------- Catalogue des indicateurs ---------- */
 const KPIS = [
@@ -302,9 +307,9 @@ function cfg(){ return Object.assign({}, DEFAULTS, S.settings||{}); }
 function on(k){ return cfg().kpis.includes(k); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,3200); }
 /* ---------- Configuration Supabase : colle tes deux valeurs ici ---------- */
-const SUPABASE_URL = https://lqmbejarmujpxrejovby.supabase.co/rest/v1/;          // ex. https://abcdefgh.supabase.co
-const SUPABASE_KEY = sb_publishable_ymrYYbbkgWX_2B5qjmwzeA_4MWqcCnj; // clé publique, pas la clé secrète
-const configured = () => /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL) && SUPABASE_KEY.length > 20 && !SUPABASE_KEY.startsWith('COLLE');
+const SUPABASE_URL = 'https://lqmbejarmujpxrejovby.supabase.co';          // ex. https://abcdefgh.supabase.co
+const SUPABASE_KEY = 'sb_publishable_ymrYYbbkgWX_2B5qjmwzeA_4MWqcCnj'; // clé publique, pas la clé secrète
+const configured = () => /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL.trim().replace(/\/rest\/v1\/?$/,'')) && SUPABASE_KEY.length > 20 && !SUPABASE_KEY.startsWith('COLLE');
 
 function errMsg(e){
   const c=e&&(e.code||''), m=String(e&&e.message||'');
@@ -1386,9 +1391,10 @@ document.addEventListener('click', async e=>{
 });
 (async()=>{
   if(!configured()||!window.supabase){ S.auth='setup'; render(); return; }
-  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+  sb=window.supabase.createClient(SUPABASE_URL.trim().replace(/\/rest\/v1\/?$/,'').replace(/\/$/,''),SUPABASE_KEY.trim(),{auth:{persistSession:true,autoRefreshToken:true}});
+  const t=setTimeout(()=>{ if(S.auth==='loading') showFatal('Supabase ne répond pas. Vérifie la clé et que le projet n\u2019est pas en pause.'); },12000);
   const {data}=await sb.auth.getSession();
-  await boot(data.session);
+  await boot(data.session); clearTimeout(t);
   sb.auth.onAuthStateChange((ev,session)=>{ if(ev==='SIGNED_IN'&&S.auth!=='ok') boot(session); if(ev==='SIGNED_OUT'){ S.auth='login'; render(); } });
 })();
 </script>
